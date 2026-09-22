@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worship Scheduling Assistant</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --ink:#161616;
+    --paper:#f5f6f8;
+    --paper-raised:#ffffff;
+    --line:#dde1e8;
+    --accent:#3b61ff;
+    --accent-soft:#e8ecff;
+    --gold:#161616;
+    --gold-soft:#eef0f3;
+    --muted:#5c6270;
+    --danger:#c62828;
+    --danger-soft:#fbe4e2;
+    --focus:#3b61ff;
+    --md-highlight:#ffd873;
+    --shadow: 0 1px 2px rgba(22,22,22,0.06), 0 4px 14px rgba(22,22,22,0.07);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#f2f3f5;
+      --paper:#121316;
+      --paper-raised:#1b1c20;
+      --line:#33353c;
+      --accent:#6b85ff;
+      --accent-soft:#232a4d;
+      --gold:#f2f3f5;
+      --gold-soft:#26272c;
+      --muted:#9a9ea8;
+      --danger:#e5695f;
+      --danger-soft:#3a2422;
+      --focus:#6b85ff;
+      --md-highlight:#8a6d1e;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 18px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#f2f3f5;
+    --paper:#121316;
+    --paper-raised:#1b1c20;
+    --line:#33353c;
+    --accent:#6b85ff;
+    --accent-soft:#232a4d;
+    --gold:#f2f3f5;
+    --gold-soft:#26272c;
+    --muted:#9a9ea8;
+    --danger:#e5695f;
+    --danger-soft:#3a2422;
+    --focus:#6b85ff;
+    --md-highlight:#8a6d1e;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 18px rgba(0,0,0,0.35);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family: "Lato", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-inline:16px;
+    padding-block:20px;
+    max-width:1180px;
+    margin:0 auto;
+  }
+  h1,h2,h3{
+    font-family:"Montserrat", "Segoe UI", sans-serif;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    text-wrap:balance;
+    margin:0;
+  }
+  .eyebrow{
+    font-family:"Oswald", "Segoe UI", sans-serif;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:500;
+  }
+  header.page{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    padding-block:4px 18px;
+    border-bottom:2px solid var(--ink);
+    margin-bottom:18px;
+  }
+  header.page .logo{
+    height:44px;
+    width:auto;
+    flex-shrink:0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) header.page .logo{ filter:invert(1); }
+  }
+  :root[data-theme="dark"] header.page .logo{ filter:invert(1); }
+  header.page .heading-block{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-width:0; flex:1; text-align:center;}
+  header.page .heading-block .eyebrow{font-size:12px;}
+  header.page .heading-block .wordmark{font-family:"Montserrat","Segoe UI",sans-serif; font-weight:700; font-size:17px; letter-spacing:-0.01em;}
+  header.page .who{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;}
+  header.page .who .name{font-size:13px; font-weight:600;}
+  header.page .who .role-badge{font-size:11px; color:var(--muted);}
+
+  nav.tabs{
+    display:flex;
+    gap:4px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+    border-bottom:1px solid var(--line);
+  }
+  nav.tabs button{
+    appearance:none;
+    border:none;
+    background:none;
+    font:inherit;
+    font-weight:600;
+    font-size:14px;
+    color:var(--muted);
+    padding:10px 14px;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    margin-bottom:-1px;
+  }
+  nav.tabs button[aria-selected="true"]{
+    color:var(--ink);
+    border-bottom-color:var(--accent);
+  }
+  nav.tabs button:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible{
+    outline:2px solid var(--focus);
+    outline-offset:2px;
+  }
+
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  .card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+    box-shadow:var(--shadow);
+  }
+  .stack{display:flex; flex-direction:column; gap:16px;}
+  .row{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;}
+  .field{display:flex; flex-direction:column; gap:5px; min-width:160px;}
+  .field label{font-size:12px; font-weight:600; color:var(--muted);}
+  select, input[type=text], input[type=email], input[type=password]{
+    font:inherit;
+    font-size:14px;
+    padding:8px 10px;
+    border-radius:7px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink);
+  }
+  button.btn{
+    font:inherit;
+    font-weight:600;
+    font-size:13.5px;
+    padding:9px 16px;
+    border-radius:7px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink);
+    cursor:pointer;
+  }
+  button.btn.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--paper);
+  }
+  button.btn.ghost{background:transparent;}
+  button.btn:disabled{opacity:0.5; cursor:not-allowed;}
+  button.btn.small{padding:5px 10px; font-size:12px;}
+
+  table{border-collapse:collapse; width:100%; font-size:13.5px;}
+  th,td{border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top;}
+  td.actions-cell{white-space:nowrap;}
+  th{background:var(--accent-soft); font-size:11px; letter-spacing:0.03em; text-transform:uppercase; color:var(--ink);}
+
+  .pill{
+    display:inline-block;
+    font-size:11px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:99px;
+    background:var(--accent-soft);
+    color:var(--accent);
+    margin:1px 3px 1px 0;
+  }
+  .pill.gold{background:var(--gold-soft); color:var(--gold);}
+
+  .people-table td.name{font-weight:600;}
+  .muted{color:var(--muted);}
+  .small{font-size:12px;}
+
+  .checklist{display:flex; flex-direction:column; gap:8px;}
+  .check-row{
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--paper);
+    overflow:hidden;
+  }
+  .check-row-main{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 10px;
+  }
+  .check-row input{width:16px; height:16px;}
+  .check-row .date-label{font-weight:600; font-size:13.5px;}
+  .check-row .who-toggle{
+    margin-left:auto;
+    background:none;
+    border:none;
+    color:var(--accent);
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    padding:2px 4px;
+  }
+  .check-row .who-toggle:hover{text-decoration:underline;}
+  .check-row-who{
+    display:none;
+    padding:0 10px 10px 36px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .check-row-who.open{display:block;}
+  .check-row-who .away-names{color:var(--ink);}
+
+  .status-grid{display:flex; flex-wrap:wrap; gap:6px;}
+  .status-chip{
+    font-size:12px;
+    padding:4px 9px;
+    border-radius:99px;
+    border:1px solid var(--line);
+  }
+  .status-chip.done{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .status-chip.pending{background:transparent; color:var(--muted);}
+
+  .away-list{display:flex; flex-direction:column; gap:6px; margin-top:12px;}
+  .away-list .empty{color:var(--muted); font-size:13.5px;}
+  .away-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--danger-soft);
+    font-size:13.5px;
+    font-weight:600;
+  }
+  .pending-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--paper);
+    color:var(--muted);
+    font-size:13.5px;
+  }
+
+  .roster-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px;}
+  table.roster{min-width:640px;}
+  table.roster th.date-col{background:var(--ink); color:var(--paper); font-size:12px;}
+  table.roster td.role-label{background:var(--accent-soft); font-weight:700; white-space:nowrap;}
+  table.roster td.slot{min-width:110px;}
+  table.roster td.slot.editable{cursor:pointer;}
+  table.roster td.slot.editable:hover{background:var(--gold-soft);}
+  table.roster td.slot.flagged{background:var(--danger-soft); color:var(--danger); font-weight:600;}
+  table.roster td.slot.empty{color:var(--muted); font-style:italic;}
+  table.roster td.slot.md{background:var(--md-highlight); font-weight:700;}
+  table.roster tr.roster-away-row td{font-size:12px; color:var(--muted); border-top:none;}
+  table.roster tr.roster-away-row td div{line-height:1.5;}
+
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:10px;}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .swatch{width:11px; height:11px; border-radius:3px; display:inline-block; border:1px solid var(--line);}
+
+  .print-title{display:none;}
+  .print-logo{display:none;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #roster-card, #roster-card *{visibility:visible;}
+    #roster-card{position:absolute; top:0; left:0; width:100%; border:none; box-shadow:none; padding:0;}
+    .print-title{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      font-family:"Montserrat","Segoe UI",sans-serif;
+      font-weight:700;
+      font-size:20px;
+      margin-bottom:12px;
+    }
+    .print-logo{display:block; height:40px; width:auto;}
+    .roster-wrap{overflow:visible; border:none;}
+    table.roster{
+      width:100%; min-width:0;
+      border-collapse:collapse;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;
+    }
+    table.roster th, table.roster td{border:1px solid #000;}
+    table.roster th.date-col{background:#000 !important; color:#fff !important;}
+    table.roster td.role-label{background:var(--accent-soft) !important;}
+    table.roster td.slot.md{background:var(--md-highlight) !important;}
+    table.roster td.slot.flagged{background:var(--danger-soft) !important;}
+    table.roster td.slot.editable{cursor:default;}
+    table.roster td.slot.editable:hover{background:inherit;}
+    .legend, .flag-list{display:none;}
+  }
+
+  dialog.override{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:0;
+    max-width:360px;
+    width:90vw;
+    color:var(--ink);
+    background:var(--paper-raised);
+    box-shadow:var(--shadow);
+  }
+  dialog.override::backdrop{background:rgba(20,20,16,0.4);}
+  dialog.override .dlg-body{padding:18px; display:flex; flex-direction:column; gap:12px;}
+  dialog.override h3{font-size:16px;}
+  dialog.override select{width:100%;}
+  dialog.override .dlg-actions{display:flex; justify-content:flex-end; gap:8px;}
+
+  .flag-list{display:flex; flex-direction:column; gap:6px; margin-top:14px;}
+  .flag-item{
+    font-size:12.5px;
+    background:var(--danger-soft);
+    color:var(--danger);
+    padding:7px 10px;
+    border-radius:7px;
+  }
+
+  .toast{
+    position:fixed;
+    bottom:calc(20px + env(safe-area-inset-bottom, 0px));
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--ink);
+    color:var(--paper);
+    padding:10px 18px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    box-shadow:var(--shadow);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.2s ease;
+    z-index:50;
+  }
+  .toast.show{opacity:1;}
+
+  .empty-state{padding:30px 10px; text-align:center; color:var(--muted); font-size:13.5px;}
+
+  .section-title{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .section-title h2{font-size:19px;}
+
+  /* ---- auth screen ---- */
+  #view-auth{
+    max-width:420px;
+    margin:48px auto;
+  }
+  .auth-hero{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    gap:10px;
+    margin-bottom:28px;
+  }
+  .auth-hero .auth-logo{
+    height:52px;
+    width:auto;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .auth-hero .auth-logo{ filter:invert(1); }
+  }
+  :root[data-theme="dark"] .auth-hero .auth-logo{ filter:invert(1); }
+  .auth-hero .auth-wordmark{
+    font-family:"Oswald", "Segoe UI", sans-serif;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:500;
+  }
+  .auth-hero h1{font-size:26px;}
+  .auth-hero p{margin:0; color:var(--muted); font-size:14.5px; max-width:42ch;}
+  .auth-card{max-width:420px; margin:0 auto;}
+  #view-auth .toggle-row{display:flex; gap:8px; margin-bottom:14px;}
+  #view-auth .toggle-row button{flex:1;}
+  #view-auth .toggle-row button[aria-selected="true"]{background:var(--accent); border-color:var(--accent); color:var(--paper);}
+  #signup-extra{display:flex; flex-direction:column; gap:12px; margin-top:4px;}
+  #auth-error{color:var(--danger); font-size:13px; min-height:1.2em;}
+
+  [hidden]{display:none !important;}
+
+  @media (max-width:640px){
+    header.page{flex-wrap:wrap;}
+    header.page .logo{height:34px;}
+    header.page .heading-block .wordmark{font-size:15px;}
+    header.page .who{align-items:flex-start;}
+    .row{flex-direction:column; align-items:stretch;}
+    .field{min-width:0;}
+    .auth-hero{margin-bottom:20px;}
+    .auth-hero .auth-logo{height:40px;}
+    .auth-hero h1{font-size:22px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="page" id="app-header" hidden>
+  <img class="logo" alt="Edge Church" src="data:image/png;base64,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">
+  <div class="heading-block">
+    <div class="eyebrow">Edge Church · Worship Team</div>
+    <div class="wordmark">Worship Scheduling Assistant</div>
+  </div>
+  <div class="who" id="who-box" hidden>
+    <span class="name" id="who-name"></span>
+    <span class="role-badge" id="who-role"></span>
+    <button class="btn small ghost" id="logout-btn">Log out</button>
+  </div>
+</header>
+
+<section id="view-auth" class="view active">
+  <div class="auth-hero">
+    <img class="auth-logo" alt="Edge Church" src="data:image/png;base64,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">
+    <div class="auth-wordmark">Edge Church <span>·</span> Worship Team</div>
+    <h1>Worship Scheduling Assistant</h1>
+    <p>Take your place in a fun-loving family, that puts God first, builds real relationships and takes hope to the world.</p>
+  </div>
+  <div class="card auth-card">
+    <div class="toggle-row">
+      <button type="button" id="auth-tab-login" aria-selected="true">Log in</button>
+      <button type="button" id="auth-tab-signup" aria-selected="false">Sign up</button>
+    </div>
+    <div class="stack">
+      <div class="field">
+        <label for="auth-email">Email</label>
+        <input type="email" id="auth-email" autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" autocomplete="current-password">
+      </div>
+      <div id="signup-extra" hidden>
+        <div class="field">
+          <label for="s-name">Name</label>
+          <input type="text" id="s-name" placeholder="e.g. Kirsty">
+        </div>
+        <div class="field">
+          <label for="s-campus">Campus</label>
+          <select id="s-campus">
+            <option value="EM">EM</option>
+            <option value="GW">GW</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="s-vocalpart">Vocal part (if a vocalist)</label>
+          <select id="s-vocalpart">
+            <option value="">Not a vocalist</option>
+            <option value="melody">Melody only</option>
+            <option value="harmony">Harmony-capable</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Roles</label>
+          <div class="row" id="s-roles" style="gap:14px;"></div>
+        </div>
+      </div>
+      <div id="auth-error"></div>
+      <button class="btn primary" id="auth-submit-btn">Log in</button>
+    </div>
+  </div>
+</section>
+
+<div id="app-shell" hidden>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-view="setup" aria-selected="true">Team</button>
+    <button role="tab" data-view="submit" aria-selected="false">Submit away dates</button>
+    <button role="tab" data-view="roster" aria-selected="false">Roster</button>
+  </nav>
+
+  <section id="view-setup" class="view active">
+    <div class="stack">
+      <div class="card" id="admin-person-form-card" hidden>
+        <div class="section-title">
+          <h2 id="person-form-title">Edit a team member</h2>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div class="field" style="flex:1 1 160px;">
+            <label for="p-name">Name</label>
+            <input type="text" id="p-name" disabled>
+          </div>
+          <div class="field">
+            <label for="p-campus">Campus</label>
+            <select id="p-campus">
+              <option value="EM">EM</option>
+              <option value="GW">GW</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="p-vocalpart">Vocal part (if a vocalist)</label>
+            <select id="p-vocalpart">
+              <option value="">Not a vocalist</option>
+              <option value="melody">Melody only</option>
+              <option value="harmony">Harmony-capable</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Roles</label>
+          <div class="row" id="p-roles" style="gap:14px;"></div>
+        </div>
+        <div class="row" style="margin-top:14px;">
+          <button class="btn primary" id="save-person-btn">Save changes</button>
+          <button class="btn ghost" id="cancel-edit-btn">Cancel</button>
+          <span class="small muted" id="add-person-msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <h2>Current team</h2>
+          <div class="row">
+            <select id="team-filter">
+              <option value="all">Both campuses</option>
+              <option value="EM">EM only</option>
+              <option value="GW">GW only</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow-x:auto; margin-top:12px;">
+          <table class="people-table" id="people-table">
+            <thead>
+              <tr><th>Name</th><th>Campus</th><th>Roles</th><th>Vocal part</th><th></th></tr>
+            </thead>
+            <tbody id="people-tbody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="people-empty" hidden>No one on the team yet — team members appear here once they sign up.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-submit" class="view">
+    <div class="stack">
+      <div class="card">
+        <div class="section-title">
+          <h2>Submit your away dates</h2>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div class="field">
+            <label for="submit-month">Month</label>
+            <select id="submit-month"></select>
+          </div>
+        </div>
+        <div class="checklist" id="submit-checklist" style="margin-top:14px;"></div>
+        <div class="check-row" id="no-away-row" style="margin-top:8px;">
+          <label class="check-row-main">
+            <input type="checkbox" id="no-away-checkbox"> <span class="date-label">No away dates</span> <span class="muted small">I'm available every Sunday this month</span>
+          </label>
+        </div>
+        <div class="row" style="margin-top:14px;">
+          <button class="btn primary" id="submit-away-btn">Save my away dates</button>
+          <span class="small muted" id="submit-msg"></span>
+        </div>
+      </div>
+
+      <div class="card" id="not-submitted-card">
+        <div class="section-title">
+          <h2>Not yet submitted</h2>
+        </div>
+        <div class="away-list" id="not-submitted-list" style="margin-top:12px;"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-roster" class="view">
+    <div class="stack">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <div class="row">
+            <div class="field">
+              <label for="roster-month">Month</label>
+              <select id="roster-month"></select>
+            </div>
+            <div class="field">
+              <label for="roster-campus">Campus</label>
+              <select id="roster-campus">
+                <option value="EM">EM</option>
+                <option value="GW">GW</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" id="roster-admin-actions">
+            <button class="btn primary" id="generate-btn">Generate roster</button>
+            <button class="btn ghost" id="regenerate-btn">Regenerate</button>
+            <button class="btn ghost" id="export-btn">Export</button>
+            <button class="btn ghost" id="publish-btn" hidden>Publish</button>
+            <span class="small muted" id="publish-status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="roster-card">
+        <div class="print-title" id="print-title">
+          <img class="print-logo" id="print-logo" alt="Edge Church">
+          <span id="print-title-text"></span>
+        </div>
+        <div class="roster-wrap">
+          <table class="roster" id="roster-table"></table>
+        </div>
+        <div class="legend">
+          <span><span class="swatch" style="background:var(--md-highlight);"></span> Music Director</span>
+          <span><span class="swatch" style="background:var(--danger-soft);"></span> flagged — rule couldn't be fully satisfied</span>
+          <span id="legend-override"><span class="swatch" style="background:var(--gold-soft);"></span> click a cell to override</span>
+        </div>
+        <div class="flag-list" id="flag-list"></div>
+      </div>
+
+      <div class="card" id="not-serving-card">
+        <div class="section-title">
+          <h2>Not serving this month</h2>
+        </div>
+        <div class="away-list" id="not-serving-list" style="margin-top:12px;"></div>
+      </div>
+    </div>
+  </section>
+
+  <dialog class="override" id="override-dialog">
+    <div class="dlg-body">
+      <h3 id="override-title">Assign</h3>
+      <select id="override-select"></select>
+      <div class="dlg-actions">
+        <button class="btn ghost" id="override-cancel">Cancel</button>
+        <button class="btn primary" id="override-save">Save</button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Supabase config ----------
+  var SUPABASE_URL = "https://dqutantvygkpwktirwqv.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdXRhbnR2eWdrcHdrdGlyd3F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMDQ1NDAsImV4cCI6MjEwNTU4MDU0MH0.DnIVxbqQZW40-D8rrJF5xThUCqBYt_CVesC3wIVqmyQ";
+  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var ROLES = ["Music Director","Worship Leader","Vocal","Keys","Bass","Lead Guitar","Drums"];
+  var VOCAL_SLOTS = 4;
+
+  // ---------- state ----------
+  var state = {
+    session: null,     // supabase auth session
+    me: null,           // {id, name, campus, role, roles[], vocalPart}
+    people: [],         // profiles: {id, name, campus, role, roles[], vocalPart}
+    months: {},          // monthId -> {label, sundays:[{date,label}]}
+    availability: {},    // monthId -> {profileId: [dates]}
+    roster: {}           // monthId+campus -> {assignments, flags, generatedAt}
+  };
+  var rngSeed = Date.now() % 100000;
+  var isAdmin = function(){ return !!(state.me && state.me.role === "admin"); };
+
+  function seededRandom(){
+    rngSeed = (rngSeed * 9301 + 49297) % 233280;
+    return rngSeed / 233280;
+  }
+  function shuffle(arr){
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--){
+      var j = Math.floor(seededRandom() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  // ---------- month helpers ----------
+  function sundaysInMonth(year, month){ // month 0-indexed
+    var dates = [];
+    var d = new Date(year, month, 1);
+    while (d.getDay() !== 0) d.setDate(d.getDate() + 1);
+    while (d.getMonth() === month){
+      dates.push(new Date(d));
+      d.setDate(d.getDate() + 7);
+    }
+    return dates;
+  }
+  function isoDate(d){
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  }
+  function humanDate(d){
+    return d.toLocaleDateString(undefined, {day:"numeric", month:"short"});
+  }
+  function monthLabel(year, month){
+    return new Date(year, month, 1).toLocaleDateString(undefined, {month:"long", year:"numeric"});
+  }
+  function firstThursdayInMonth(year, month){ // month 0-indexed
+    var d = new Date(year, month, 1);
+    while (d.getDay() !== 4) d.setDate(d.getDate() + 1);
+    return d;
+  }
+  function ensureMonth(monthId){
+    if (state.months[monthId]) return state.months[monthId];
+    var parts = monthId.split("-");
+    var year = parseInt(parts[0],10), month = parseInt(parts[1],10) - 1;
+    var sundays = sundaysInMonth(year, month).map(function(d){ return {date: isoDate(d), label: humanDate(d)}; });
+    var thursday = firstThursdayInMonth(year, month);
+    var prayerEncounter = {date: isoDate(thursday), label: humanDate(thursday) + " (Prayer Encounter)"};
+    var serviceDates = sundays.concat([prayerEncounter]).sort(function(a,b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+    var m = {label: monthLabel(year, month), sundays: sundays, prayerEncounter: prayerEncounter, serviceDates: serviceDates};
+    state.months[monthId] = m;
+    return m;
+  }
+  var PRAYER_ENCOUNTER_CAMPUS = "EM";
+  function datesForCampus(month, campus){
+    if (campus === PRAYER_ENCOUNTER_CAMPUS) return month.serviceDates;
+    return month.serviceDates.filter(function(s){ return !month.prayerEncounter || s.date !== month.prayerEncounter.date; });
+  }
+  function currentAndNextMonthIds(){
+    var now = new Date();
+    var ids = [];
+    for (var i=0;i<3;i++){
+      var d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+      ids.push(d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"));
+    }
+    return ids;
+  }
+
+  function toast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // =====================================================================
+  // AUTH
+  // =====================================================================
+  var authRoleWrap = document.getElementById("s-roles");
+  ROLES.forEach(function(role){
+    var id = "s-role-" + role.replace(/\s+/g,"");
+    var label = document.createElement("label");
+    label.style.display = "inline-flex";
+    label.style.alignItems = "center";
+    label.style.gap = "5px";
+    label.style.fontSize = "13px";
+    label.innerHTML = '<input type="checkbox" value="' + role + '" id="' + id + '"> ' + role;
+    authRoleWrap.appendChild(label);
+  });
+
+  var authMode = "login"; // "login" | "signup"
+  function setAuthMode(mode){
+    authMode = mode;
+    document.getElementById("auth-tab-login").setAttribute("aria-selected", mode === "login" ? "true" : "false");
+    document.getElementById("auth-tab-signup").setAttribute("aria-selected", mode === "signup" ? "true" : "false");
+    document.getElementById("signup-extra").hidden = mode !== "signup";
+    document.getElementById("auth-submit-btn").textContent = mode === "signup" ? "Sign up" : "Log in";
+    document.getElementById("auth-error").textContent = "";
+  }
+  document.getElementById("auth-tab-login").addEventListener("click", function(){ setAuthMode("login"); });
+  document.getElementById("auth-tab-signup").addEventListener("click", function(){ setAuthMode("signup"); });
+
+  document.getElementById("auth-submit-btn").addEventListener("click", function(){
+    var email = document.getElementById("auth-email").value.trim();
+    var password = document.getElementById("auth-password").value;
+    var errEl = document.getElementById("auth-error");
+    errEl.textContent = "";
+    if (!email || !password){ errEl.textContent = "Enter your email and password."; return; }
+
+    if (authMode === "login"){
+      supabase.auth.signInWithPassword({email: email, password: password}).then(function(res){
+        if (res.error){ errEl.textContent = res.error.message; }
+      });
+    } else {
+      var name = document.getElementById("s-name").value.trim();
+      var campus = document.getElementById("s-campus").value;
+      var vocalPart = document.getElementById("s-vocalpart").value || null;
+      var roles = Array.prototype.slice.call(authRoleWrap.querySelectorAll("input:checked")).map(function(c){ return c.value; });
+      if (!name){ errEl.textContent = "Enter your name."; return; }
+      if (!roles.length){ errEl.textContent = "Pick at least one role."; return; }
+
+      supabase.auth.signUp({email: email, password: password}).then(function(res){
+        if (res.error){ errEl.textContent = res.error.message; return; }
+        var userId = res.data && res.data.user && res.data.user.id;
+        if (!userId){ errEl.textContent = "Signup succeeded but no session yet — try logging in."; return; }
+        return supabase.from("profiles").insert({
+          id: userId,
+          name: name,
+          campus: campus,
+          roles: roles,
+          vocal_part: vocalPart
+        }).then(function(insRes){
+          if (insRes.error){ errEl.textContent = "Account created, but profile setup failed: " + insRes.error.message; }
+        });
+      });
+    }
+  });
+
+  document.getElementById("logout-btn").addEventListener("click", function(){
+    supabase.auth.signOut();
+  });
+
+  document.getElementById("print-logo").src = document.querySelector("header.page .logo").src;
+
+  function profileToPerson(p){
+    return {
+      id: p.id,
+      name: p.name,
+      campus: p.campus,
+      role: p.role,
+      roles: p.roles || [],
+      vocalPart: p.vocal_part || null
+    };
+  }
+
+  function showAuthScreen(){
+    document.getElementById("view-auth").classList.add("active");
+    document.getElementById("app-shell").hidden = true;
+    document.getElementById("app-header").hidden = true;
+    document.getElementById("who-box").hidden = true;
+  }
+
+  function showApp(){
+    document.getElementById("view-auth").classList.remove("active");
+    document.getElementById("app-shell").hidden = false;
+    document.getElementById("app-header").hidden = false;
+    document.getElementById("who-box").hidden = false;
+    document.getElementById("who-name").textContent = state.me.name;
+    document.getElementById("who-role").textContent = state.me.role === "admin" ? "Admin" : "Team member";
+
+    document.getElementById("admin-person-form-card").hidden = true; // shown only when Edit is clicked on a team row
+    document.getElementById("roster-admin-actions").hidden = !isAdmin();
+    document.getElementById("legend-override").hidden = !isAdmin();
+    document.getElementById("not-submitted-card").hidden = !isAdmin();
+    document.getElementById("not-serving-card").hidden = !isAdmin();
+
+    loadAll().then(start);
+  }
+
+  supabase.auth.onAuthStateChange(function(event, session){
+    state.session = session;
+    if (!session){
+      state.me = null;
+      showAuthScreen();
+      return;
+    }
+    supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle().then(function(res){
+      if (res.error || !res.data){
+        showAuthScreen();
+        return;
+      }
+      state.me = profileToPerson(res.data);
+      showApp();
+    });
+  });
+
+  // =====================================================================
+  // Data loading (Supabase)
+  // =====================================================================
+  function loadAll(){
+    return Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("availability").select("*"),
+      supabase.from("roster").select("*")
+    ]).then(function(results){
+      var peopleRes = results[0], availRes = results[1], rosterRes = results[2];
+      state.people = (peopleRes.data || []).map(profileToPerson);
+      state.availability = {};
+      (availRes.data || []).forEach(function(a){
+        state.availability[a.month_id] = state.availability[a.month_id] || {};
+        state.availability[a.month_id][a.profile_id] = a.away_dates || [];
+      });
+      state.roster = {};
+      (rosterRes.data || []).forEach(function(r){
+        state.roster[r.id] = {
+          key: r.id, monthId: r.month_id, campus: r.campus,
+          assignments: r.assignments || {}, flags: r.flags || [], generatedAt: r.generated_at,
+          published: !!r.published
+        };
+      });
+    });
+  }
+
+  // ---------- tabs ----------
+  var tabButtons = Array.prototype.slice.call(document.querySelectorAll("nav.tabs button"));
+  tabButtons.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      tabButtons.forEach(function(b){ b.setAttribute("aria-selected", b === btn ? "true" : "false"); });
+      document.querySelectorAll("#app-shell section.view").forEach(function(v){ v.classList.remove("active"); });
+      document.getElementById("view-" + btn.dataset.view).classList.add("active");
+      if (btn.dataset.view === "submit") renderSubmitView();
+      if (btn.dataset.view === "roster") renderRosterView();
+    });
+  });
+
+  // =====================================================================
+  // Team view (admin: edit any profile's campus/roles/vocal part)
+  // =====================================================================
+  var roleCheckboxWrap = document.getElementById("p-roles");
+  ROLES.forEach(function(role){
+    var id = "role-" + role.replace(/\s+/g,"");
+    var label = document.createElement("label");
+    label.style.display = "inline-flex";
+    label.style.alignItems = "center";
+    label.style.gap = "5px";
+    label.style.fontSize = "13px";
+    label.innerHTML = '<input type="checkbox" value="' + role + '" id="' + id + '"> ' + role;
+    roleCheckboxWrap.appendChild(label);
+  });
+
+  var editingPersonId = null;
+
+  function resetPersonForm(){
+    editingPersonId = null;
+    document.getElementById("admin-person-form-card").hidden = true;
+    document.getElementById("p-name").value = "";
+    document.getElementById("p-campus").value = "EM";
+    document.getElementById("p-vocalpart").value = "";
+    roleCheckboxWrap.querySelectorAll("input").forEach(function(c){ c.checked = false; });
+  }
+
+  function canEditPerson(id){
+    return isAdmin() || (state.me && state.me.id === id);
+  }
+
+  function beginEditPerson(id){
+    if (!canEditPerson(id)) return;
+    var p = state.people.find(function(pp){ return pp.id === id; });
+    if (!p) return;
+    editingPersonId = id;
+    document.getElementById("admin-person-form-card").hidden = false;
+    document.getElementById("person-form-title").textContent = "Edit " + p.name;
+    document.getElementById("p-name").value = p.name;
+    document.getElementById("p-campus").value = p.campus;
+    document.getElementById("p-vocalpart").value = p.vocalPart || "";
+    roleCheckboxWrap.querySelectorAll("input").forEach(function(c){ c.checked = p.roles.indexOf(c.value) !== -1; });
+    document.getElementById("admin-person-form-card").scrollIntoView({behavior:"smooth", block:"center"});
+  }
+
+  document.getElementById("cancel-edit-btn").addEventListener("click", resetPersonForm);
+
+  document.getElementById("save-person-btn").addEventListener("click", function(){
+    if (!editingPersonId || !canEditPerson(editingPersonId)) return;
+    var campus = document.getElementById("p-campus").value;
+    var vocalPart = document.getElementById("p-vocalpart").value || null;
+    var roles = Array.prototype.slice.call(roleCheckboxWrap.querySelectorAll("input:checked")).map(function(c){ return c.value; });
+    var msg = document.getElementById("add-person-msg");
+    if (!roles.length){ msg.textContent = "Pick at least one role."; return; }
+
+    var existing = state.people.find(function(pp){ return pp.id === editingPersonId; });
+    if (!existing) return;
+    existing.campus = campus;
+    existing.roles = roles;
+    existing.vocalPart = vocalPart;
+
+    supabase.from("profiles").update({
+      campus: campus, roles: roles, vocal_part: vocalPart
+    }).eq("id", editingPersonId).then(function(res){
+      if (res.error){ msg.textContent = "Failed to save: " + res.error.message; return; }
+      msg.textContent = "Saved changes to " + existing.name + ".";
+      renderPeopleTable();
+      resetPersonForm();
+      setTimeout(function(){ msg.textContent = ""; }, 2500);
+    });
+  });
+
+  document.getElementById("team-filter").addEventListener("change", renderPeopleTable);
+
+  function renderPeopleTable(){
+    var filter = document.getElementById("team-filter").value;
+    var tbody = document.getElementById("people-tbody");
+    tbody.innerHTML = "";
+    var people = state.people.filter(function(p){ return filter === "all" || p.campus === filter; })
+      .sort(function(a,b){ return a.name.localeCompare(b.name); });
+    document.getElementById("people-empty").hidden = people.length > 0;
+    people.forEach(function(p){
+      var tr = document.createElement("tr");
+      var rolesHtml = p.roles.map(function(r){ return '<span class="pill">' + r + '</span>'; }).join("");
+      var nameHtml = escapeHtml(p.name) + (p.role === "admin" ? ' <span class="pill gold">admin</span>' : '');
+      var actionsHtml = canEditPerson(p.id) ? '<button class="btn small edit-person" data-id="' + p.id + '">Edit</button>' : '';
+      tr.innerHTML =
+        '<td class="name">' + nameHtml + '</td>' +
+        '<td>' + p.campus + '</td>' +
+        '<td>' + rolesHtml + '</td>' +
+        '<td>' + (p.vocalPart || '<span class="muted">—</span>') + '</td>' +
+        '<td class="actions-cell">' + actionsHtml + '</td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll(".edit-person").forEach(function(btn){
+      btn.addEventListener("click", function(){ beginEditPerson(btn.dataset.id); });
+    });
+  }
+
+  // =====================================================================
+  // Submit Away Dates (self only)
+  // =====================================================================
+  function populateMonthSelects(){
+    var ids = currentAndNextMonthIds();
+    ids.forEach(ensureMonth);
+    [document.getElementById("submit-month"), document.getElementById("roster-month")].forEach(function(sel){
+      var prev = sel.value;
+      sel.innerHTML = "";
+      ids.forEach(function(id){
+        var opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = state.months[id].label;
+        sel.appendChild(opt);
+      });
+      if (prev && ids.indexOf(prev) !== -1) sel.value = prev;
+    });
+  }
+
+  document.getElementById("submit-month").addEventListener("change", function(){
+    renderSubmitChecklist();
+    renderSubmitStatus();
+  });
+
+  function renderSubmitView(){
+    renderSubmitChecklist();
+    renderSubmitStatus();
+  }
+
+  function whoIsAwayOn(monthId, date){
+    var submitted = state.availability[monthId] || {};
+    return state.people.filter(function(p){
+      var dates = submitted[p.id];
+      return dates && dates.indexOf(date) !== -1;
+    }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+  }
+
+  function buildCheckRow(monthId, dateEntry, existing, awayCopy){
+    var row = document.createElement("div");
+    row.className = "check-row";
+
+    var main = document.createElement("label");
+    main.className = "check-row-main";
+    var checked = existing.indexOf(dateEntry.date) !== -1 ? "checked" : "";
+    main.innerHTML = '<input type="checkbox" value="' + dateEntry.date + '" ' + checked + '> <span class="date-label">' + dateEntry.label + '</span> <span class="muted small">' + awayCopy + '</span>';
+
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "who-toggle";
+    toggle.textContent = "Who's away?";
+    main.appendChild(toggle);
+
+    var who = document.createElement("div");
+    who.className = "check-row-who";
+
+    toggle.addEventListener("click", function(){
+      var isOpen = who.classList.contains("open");
+      if (isOpen){
+        who.classList.remove("open");
+        toggle.textContent = "Who's away?";
+        return;
+      }
+      var away = whoIsAwayOn(monthId, dateEntry.date);
+      who.innerHTML = away.length
+        ? '<div class="away-names">' + stackedNames(away.map(function(p){ return p.name; })) + '</div>'
+        : "Nobody has marked themselves away for this date.";
+      who.classList.add("open");
+      toggle.textContent = "Hide";
+    });
+
+    main.querySelector("input").addEventListener("change", function(){
+      updateNoAwayState();
+    });
+
+    row.appendChild(main);
+    row.appendChild(who);
+    return row;
+  }
+
+  function renderSubmitChecklist(){
+    var monthId = document.getElementById("submit-month").value;
+    var month = ensureMonth(monthId);
+    var existing = (state.availability[monthId] && state.availability[monthId][state.me.id]) || [];
+    var wrap = document.getElementById("submit-checklist");
+    wrap.innerHTML = "";
+    month.serviceDates.forEach(function(s){
+      var isPrayerEncounter = month.prayerEncounter && s.date === month.prayerEncounter.date;
+      wrap.appendChild(buildCheckRow(monthId, s, existing, isPrayerEncounter ? "I am away for Prayer Encounter" : "I am away this Sunday"));
+    });
+
+    var noAwayBox = document.getElementById("no-away-checkbox");
+    noAwayBox.checked = existing.length === 0 && Object.prototype.hasOwnProperty.call(state.availability[monthId] || {}, state.me.id);
+    updateNoAwayState();
+  }
+
+  function updateNoAwayState(){
+    var noAwayBox = document.getElementById("no-away-checkbox");
+    var sundayBoxes = Array.prototype.slice.call(document.querySelectorAll("#submit-checklist input[type=checkbox]"));
+    var anyChecked = sundayBoxes.some(function(c){ return c.checked; });
+    if (anyChecked) noAwayBox.checked = false;
+    sundayBoxes.forEach(function(c){ c.disabled = noAwayBox.checked; });
+  }
+
+  document.getElementById("no-away-checkbox").addEventListener("change", function(){
+    var noAwayBox = document.getElementById("no-away-checkbox");
+    if (noAwayBox.checked){
+      Array.prototype.slice.call(document.querySelectorAll("#submit-checklist input[type=checkbox]")).forEach(function(c){ c.checked = false; });
+    }
+    updateNoAwayState();
+  });
+
+  document.getElementById("submit-away-btn").addEventListener("click", function(){
+    var monthId = document.getElementById("submit-month").value;
+    var checked = Array.prototype.slice.call(document.querySelectorAll("#submit-checklist input:checked")).map(function(c){ return c.value; });
+    state.availability[monthId] = state.availability[monthId] || {};
+    state.availability[monthId][state.me.id] = checked;
+
+    supabase.from("availability").upsert({
+      profile_id: state.me.id,
+      month_id: monthId,
+      away_dates: checked,
+      submitted_at: new Date().toISOString()
+    }, {onConflict: "profile_id,month_id"}).then(function(res){
+      var msg = document.getElementById("submit-msg");
+      if (res.error){ msg.textContent = "Failed to save: " + res.error.message; return; }
+      msg.textContent = "Saved!";
+      renderSubmitStatus();
+      setTimeout(function(){ msg.textContent = ""; }, 2200);
+    });
+  });
+
+  function renderSubmitStatus(){
+    var monthId = document.getElementById("submit-month").value;
+    var submitted = state.availability[monthId] || {};
+
+    var notSubmittedList = document.getElementById("not-submitted-list");
+    notSubmittedList.innerHTML = "";
+    var notSubmitted = state.people.filter(function(p){
+      return !Object.prototype.hasOwnProperty.call(submitted, p.id);
+    }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+
+    if (!notSubmitted.length){
+      var doneAll = document.createElement("div");
+      doneAll.className = "empty";
+      doneAll.textContent = "Everyone has submitted their away dates for this month.";
+      notSubmittedList.appendChild(doneAll);
+    } else {
+      notSubmitted.forEach(function(p){
+        var row = document.createElement("div");
+        row.className = "pending-row";
+        row.textContent = p.name;
+        notSubmittedList.appendChild(row);
+      });
+    }
+  }
+
+  // =====================================================================
+  // Roster generation (admin only)
+  // =====================================================================
+  var INSTRUMENT_ROLES = ["Keys","Bass","Lead Guitar","Drums"];
+
+  var CAMPUSES = ["EM","GW"];
+  var MONTHLY_CAP = 3;
+
+  function buildSlotsForSunday(){
+    return [
+      {role:"Music Director", count:1},
+      {role:"Worship Leader", count:1},
+      {role:"Vocal", count:VOCAL_SLOTS},
+      {role:"Keys", count:1},
+      {role:"Bass", count:1},
+      {role:"Lead Guitar", count:1},
+      {role:"Drums", count:1}
+    ];
+  }
+
+  function otherCampus(campus){ return campus === "EM" ? "GW" : "EM"; }
+
+  // Generates both campuses' rosters together for a month, so the monthly cap
+  // and same-day availability are shared across the whole team rather than
+  // reset per campus. Each slot is filled first from people who prefer that
+  // campus, and only from the other campus if the preferred pool can't cover it.
+  function generateRosterForMonth(monthId){
+    var month = ensureMonth(monthId);
+    var avail = state.availability[monthId] || {};
+    var isAway = function(personId, date){
+      var dates = avail[personId] || [];
+      return dates.indexOf(date) !== -1;
+    };
+
+    var monthlyCount = {};
+    state.people.forEach(function(p){ monthlyCount[p.id] = 0; });
+
+    var assignments = {EM:{}, GW:{}};
+    var flags = {EM:[], GW:[]};
+    var slotDefs = buildSlotsForSunday();
+    var sundayDates = {};
+    month.sundays.forEach(function(s){ sundayDates[s.date] = true; });
+
+    var lastWeekUsed = {};
+    var thisWeekUsed = {};
+
+    month.serviceDates.forEach(function(sunday){
+      var usedToday = {};
+      var campusesToday = CAMPUSES.filter(function(campus){ return datesForCampus(month, campus).indexOf(sunday) !== -1; });
+      campusesToday.forEach(function(campus){ assignments[campus][sunday.date] = {}; });
+
+      campusesToday.forEach(function(campus){
+        var campusAssignments = assignments[campus][sunday.date];
+
+        slotDefs.forEach(function(def){
+          if (def.role !== "Vocal" && campusAssignments[def.role]) return; // already filled by dual-role Music Director
+
+          var preferred = state.people.filter(function(p){
+            return p.roles.indexOf(def.role) !== -1 && p.campus === campus && !isAway(p.id, sunday.date) && !usedToday[p.id];
+          });
+          var overflow = state.people.filter(function(p){
+            return p.roles.indexOf(def.role) !== -1 && p.campus !== campus && !isAway(p.id, sunday.date) && !usedToday[p.id];
+          });
+
+          if (def.role === "Vocal"){
+            var chosen = pickVocalTeam(preferred, monthlyCount, def.count, lastWeekUsed);
+            var fromOverflow = [];
+            if (chosen.people.length < def.count){
+              var stillNeed = def.count - chosen.people.length;
+              var remainingOverflow = overflow.filter(function(p){ return chosen.people.indexOf(p) === -1; });
+              var extra = pickVocalTeam(remainingOverflow, monthlyCount, stillNeed, lastWeekUsed);
+              fromOverflow = extra.people;
+              chosen.people = chosen.people.concat(extra.people);
+              if (extra.blendBroken) chosen.blendBroken = chosen.blendBroken || extra.blendBroken;
+            }
+            chosen.people.forEach(function(p){
+              usedToday[p.id] = true;
+              monthlyCount[p.id]++;
+              if (sundayDates[sunday.date]) thisWeekUsed[p.id] = true;
+            });
+            campusAssignments["Vocal"] = chosen.people.map(function(p){ return p.id; });
+            while (campusAssignments["Vocal"].length < def.count) campusAssignments["Vocal"].push(null);
+            if (chosen.blendBroken){
+              flags[campus].push({date: sunday.date, role:"Vocal", reason:"Couldn't get a melody + harmony blend from who's free."});
+            }
+            if (chosen.people.length < def.count){
+              flags[campus].push({date: sunday.date, role:"Vocal", reason: (def.count - chosen.people.length) + " vocal slot(s) unfilled — not enough free vocalists under the " + MONTHLY_CAP + "-per-month cap."});
+            }
+            if (fromOverflow.length){
+              flags[campus].push({date: sunday.date, role:"Vocal", reason: fromOverflow.map(function(p){ return p.name; }).join(", ") + " rostered from " + otherCampus(campus) + " — not enough free vocalists preferring " + campus + "."});
+            }
+          } else {
+            var pick = pickSinglePerson(preferred, monthlyCount, lastWeekUsed);
+            var pickedFromOverflow = false;
+            if (!pick){
+              pick = pickSinglePerson(overflow, monthlyCount, lastWeekUsed);
+              pickedFromOverflow = !!pick;
+            }
+            campusAssignments[def.role] = pick ? pick.id : null;
+            if (pick){
+              usedToday[pick.id] = true;
+              monthlyCount[pick.id]++;
+              if (sundayDates[sunday.date]) thisWeekUsed[pick.id] = true;
+
+              if (pickedFromOverflow){
+                flags[campus].push({date: sunday.date, role: def.role, reason: pick.name + " rostered from " + otherCampus(campus) + " — no one available at " + campus + "."});
+              }
+
+              if (def.role === "Music Director"){
+                var instrumentRole = INSTRUMENT_ROLES.find(function(r){
+                  return pick.roles.indexOf(r) !== -1 && !campusAssignments[r];
+                });
+                if (instrumentRole) campusAssignments[instrumentRole] = pick.id;
+              }
+            } else {
+              var anyEligible = preferred.length || overflow.length;
+              flags[campus].push({date: sunday.date, role: def.role, reason: anyEligible ? "Everyone eligible is already at the " + MONTHLY_CAP + "-per-month cap." : "No one eligible and free this Sunday."});
+            }
+          }
+        });
+      });
+
+      if (sundayDates[sunday.date]){
+        lastWeekUsed = thisWeekUsed;
+        thisWeekUsed = {};
+      }
+    });
+
+    return {
+      EM: {assignments: assignments.EM, flags: flags.EM},
+      GW: {assignments: assignments.GW, flags: flags.GW},
+      monthlyCount: monthlyCount
+    };
+  }
+
+  function pickSinglePerson(eligible, monthlyCount, lastWeekUsed){
+    if (!eligible.length) return null;
+    var underCap = eligible.filter(function(p){ return monthlyCount[p.id] < MONTHLY_CAP; });
+    var candidates = underCap.length ? underCap : [];
+    if (!candidates.length) return null;
+    candidates = shuffle(candidates).sort(function(a,b){ return monthlyCount[a.id] - monthlyCount[b.id]; });
+    var minCount = monthlyCount[candidates[0].id];
+    var tier = candidates.filter(function(p){ return monthlyCount[p.id] === minCount; });
+    if (lastWeekUsed){
+      var notLastWeek = tier.filter(function(p){ return !lastWeekUsed[p.id]; });
+      if (notLastWeek.length) tier = notLastWeek;
+    }
+    return shuffle(tier)[0];
+  }
+
+  function pickVocalTeam(eligible, monthlyCount, need, lastWeekUsed){
+    var underCap = eligible.filter(function(p){ return monthlyCount[p.id] < MONTHLY_CAP; });
+    var pickList = shuffle(underCap).sort(function(a,b){
+      var countDiff = monthlyCount[a.id] - monthlyCount[b.id];
+      if (countDiff !== 0) return countDiff;
+      if (lastWeekUsed){
+        var aLast = lastWeekUsed[a.id] ? 1 : 0, bLast = lastWeekUsed[b.id] ? 1 : 0;
+        if (aLast !== bLast) return aLast - bLast;
+      }
+      return 0;
+    });
+    var chosen = [];
+    var hasMelody = false, hasHarmony = false;
+
+    pickList.forEach(function(p){
+      if (chosen.length >= need) return;
+      chosen.push(p);
+      if (p.vocalPart === "melody") hasMelody = true;
+      if (p.vocalPart === "harmony") hasHarmony = true;
+    });
+
+    var blendPossible = underCap.some(function(p){ return p.vocalPart === "melody"; }) && underCap.some(function(p){ return p.vocalPart === "harmony"; });
+    if (blendPossible && (!hasMelody || !hasHarmony) && chosen.length){
+      var need_part = !hasMelody ? "melody" : "harmony";
+      var swapCandidate = underCap.find(function(p){ return p.vocalPart === need_part && chosen.indexOf(p) === -1; });
+      if (swapCandidate){
+        var removeIdx = -1, removeCount = -1;
+        chosen.forEach(function(p, idx){
+          if (p.vocalPart !== need_part && monthlyCount[p.id] >= removeCount){
+            removeCount = monthlyCount[p.id];
+            removeIdx = idx;
+          }
+        });
+        if (removeIdx !== -1){
+          chosen[removeIdx] = swapCandidate;
+          hasMelody = chosen.some(function(p){ return p.vocalPart === "melody"; });
+          hasHarmony = chosen.some(function(p){ return p.vocalPart === "harmony"; });
+        }
+      }
+    }
+
+    var blendBroken = blendPossible && (!hasMelody || !hasHarmony);
+    return {people: chosen, blendBroken: blendBroken};
+  }
+
+  // =====================================================================
+  // Roster view rendering
+  // =====================================================================
+  document.getElementById("roster-month").addEventListener("change", renderRosterView);
+  document.getElementById("roster-campus").addEventListener("change", renderRosterView);
+  document.getElementById("generate-btn").addEventListener("click", function(){ runGeneration(false); });
+  document.getElementById("regenerate-btn").addEventListener("click", function(){ runGeneration(true); });
+  document.getElementById("export-btn").addEventListener("click", function(){ window.print(); });
+
+  function rosterKey(monthId, campus){ return monthId + "_" + campus; }
+
+  function runGeneration(isRegenerate){
+    if (!isAdmin()) return;
+    var monthId = document.getElementById("roster-month").value;
+    if (isRegenerate) rngSeed = Date.now() % 100000;
+    var result = generateRosterForMonth(monthId);
+    var generatedAt = new Date().toISOString();
+    var rows = CAMPUSES.map(function(campus){
+      var key = rosterKey(monthId, campus);
+      var record = {key: key, monthId: monthId, campus: campus, assignments: result[campus].assignments, flags: result[campus].flags, generatedAt: generatedAt, published: false};
+      state.roster[key] = record;
+      return {
+        id: key, month_id: monthId, campus: campus,
+        assignments: result[campus].assignments, flags: result[campus].flags,
+        generated_at: generatedAt, generated_by: state.me.id, published: false
+      };
+    });
+
+    supabase.from("roster").upsert(rows).then(function(res){
+      if (res.error){ toast("Failed to save roster: " + res.error.message); return; }
+      renderRosterView();
+      toast(isRegenerate ? "Regenerated." : "Roster generated.");
+    });
+  }
+
+  function personName(id){
+    var p = state.people.find(function(pp){ return pp.id === id; });
+    return p ? p.name : null;
+  }
+
+  function stackedNames(names){
+    return names.length ? names.map(function(n){ return '<div>' + escapeHtml(n) + '</div>'; }).join("") : '<span class="muted">—</span>';
+  }
+
+  function renderNotServing(){
+    if (!isAdmin()) return;
+    var monthId = document.getElementById("roster-month").value;
+    var month = ensureMonth(monthId);
+    var list = document.getElementById("not-serving-list");
+    list.innerHTML = "";
+
+    var servingIds = {};
+    var awayIds = {};
+    CAMPUSES.forEach(function(campus){
+      var rec = state.roster[rosterKey(monthId, campus)];
+      if (!rec) return;
+      datesForCampus(month, campus).forEach(function(s){
+        var dayAssignments = rec.assignments[s.date];
+        if (!dayAssignments) return;
+        Object.keys(dayAssignments).forEach(function(role){
+          var val = dayAssignments[role];
+          (Array.isArray(val) ? val : [val]).forEach(function(id){ if (id) servingIds[id] = true; });
+        });
+      });
+    });
+    state.people.forEach(function(p){
+      var away = (state.availability[monthId] && state.availability[monthId][p.id]) || [];
+      if (away.length) awayIds[p.id] = true;
+    });
+
+    var notServing = state.people.filter(function(p){ return !servingIds[p.id]; })
+      .sort(function(a,b){ return a.name.localeCompare(b.name); });
+
+    if (!notServing.length){
+      var doneAll = document.createElement("div");
+      doneAll.className = "empty";
+      doneAll.textContent = "Everyone on the team is serving at least once this month.";
+      list.appendChild(doneAll);
+      return;
+    }
+
+    notServing.forEach(function(p){
+      var row = document.createElement("div");
+      row.className = "pending-row";
+      row.textContent = p.name + (awayIds[p.id] ? " (away this month)" : "");
+      list.appendChild(row);
+    });
+  }
+
+  function renderRosterView(){
+    var monthId = document.getElementById("roster-month").value;
+    var campus = document.getElementById("roster-campus").value;
+    var month = ensureMonth(monthId);
+    var dates = datesForCampus(month, campus);
+    var key = rosterKey(monthId, campus);
+    var record = state.roster[key];
+    var table = document.getElementById("roster-table");
+    var flagListEl = document.getElementById("flag-list");
+    flagListEl.innerHTML = "";
+    document.getElementById("print-title-text").textContent = "Worship Roster — " + month.label + " — " + campus;
+    document.getElementById("export-btn").hidden = !record;
+    renderNotServing();
+
+    var publishBtn = document.getElementById("publish-btn");
+    var publishStatus = document.getElementById("publish-status");
+    publishBtn.hidden = !record;
+    if (record){
+      publishBtn.textContent = record.published ? "Unpublish" : "Publish";
+      publishStatus.textContent = record.published ? "Published" : "Unpublished";
+    } else {
+      publishStatus.textContent = "";
+    }
+
+    if (!record){
+      table.innerHTML = '<tr><td style="border:none; padding:26px; text-align:center; color:var(--muted);">No roster generated yet for ' + month.label + ' — ' + campus + '.' + (isAdmin() ? ' Click "Generate roster" above.' : ' Ask an admin to generate it.') + '</td></tr>';
+      return;
+    }
+
+    if (!isAdmin() && !record.published){
+      document.getElementById("export-btn").hidden = true;
+      table.innerHTML = '<tr><td style="border:none; padding:26px; text-align:center; color:var(--muted);">The roster for ' + month.label + ' — ' + campus + ' hasn\'t been published yet. Check back soon.</td></tr>';
+      return;
+    }
+
+    var rows = [
+      {role:"Worship Leader", multi:false},
+      {role:"Vocal", multi:true},
+      {role:"Keys", multi:false},
+      {role:"Bass", multi:false},
+      {role:"Lead Guitar", multi:false},
+      {role:"Drums", multi:false}
+    ];
+
+    var html = "<thead><tr><th></th>";
+    dates.forEach(function(s){ html += '<th class="date-col">' + s.label + '</th>'; });
+    html += "</tr></thead><tbody>";
+
+    rows.forEach(function(r){
+      if (!r.multi){
+        html += '<tr><td class="role-label">' + r.role + '</td>';
+        dates.forEach(function(s){
+          var personId = record.assignments[s.date] ? record.assignments[s.date][r.role] : null;
+          var flagged = record.flags.some(function(f){ return f.date === s.date && f.role === r.role; });
+          var name = personId ? personName(personId) : null;
+          var isMd = INSTRUMENT_ROLES.indexOf(r.role) !== -1 && personId && record.assignments[s.date]["Music Director"] === personId;
+          var cls = "slot" + (flagged && !name ? " flagged" : (!name ? " empty" : "")) + (isMd ? " md" : "") + (isAdmin() ? " editable" : "");
+          html += '<td class="' + cls + '" data-date="' + s.date + '" data-role="' + r.role + '" data-idx="0">' + (name ? escapeHtml(name) : (flagged ? "Unfilled" : "—")) + '</td>';
+        });
+        html += "</tr>";
+      } else {
+        for (var i = 0; i < VOCAL_SLOTS; i++){
+          html += '<tr><td class="role-label">' + (i === 0 ? "Vocal" : "") + '</td>';
+          dates.forEach(function(s){
+            var ids = (record.assignments[s.date] && record.assignments[s.date]["Vocal"]) || [];
+            var personId = ids[i];
+            var flagged = record.flags.some(function(f){ return f.date === s.date && f.role === "Vocal"; }) && !personId;
+            var name = personId ? personName(personId) : null;
+            var cls = "slot" + (flagged ? " flagged" : (!name ? " empty" : "")) + (isAdmin() ? " editable" : "");
+            html += '<td class="' + cls + '" data-date="' + s.date + '" data-role="Vocal" data-idx="' + i + '">' + (name ? escapeHtml(name) : (flagged ? "Unfilled" : "—")) + '</td>';
+          });
+          html += "</tr>";
+        }
+      }
+    });
+
+    html += '<tr class="roster-away-row"><td class="role-label">Away</td>';
+    dates.forEach(function(s){
+      var away = state.people.filter(function(p){ return p.campus === campus; })
+        .filter(function(p){ return (state.availability[monthId] && state.availability[monthId][p.id] || []).indexOf(s.date) !== -1; })
+        .map(function(p){ return p.name; });
+      html += '<td>' + stackedNames(away) + '</td>';
+    });
+    html += "</tr>";
+
+    html += "</tbody>";
+    table.innerHTML = html;
+
+    if (isAdmin()){
+      table.querySelectorAll("td.slot.editable").forEach(function(td){
+        td.addEventListener("click", function(){ openOverride(monthId, campus, td.dataset.date, td.dataset.role, parseInt(td.dataset.idx,10)); });
+      });
+    }
+
+    if (record.flags.length){
+      record.flags.forEach(function(f){
+        var sunday = dates.find(function(s){ return s.date === f.date; });
+        var item = document.createElement("div");
+        item.className = "flag-item";
+        item.textContent = (sunday ? sunday.label : f.date) + " · " + f.role + " — " + f.reason;
+        flagListEl.appendChild(item);
+      });
+    } else {
+      var ok = document.createElement("div");
+      ok.className = "small muted";
+      ok.textContent = "No flags — every slot filled within the rules.";
+      flagListEl.appendChild(ok);
+    }
+  }
+
+  // ---------- Manual override dialog (admin only) ----------
+  var overrideDialog = document.getElementById("override-dialog");
+  var overrideCtx = null;
+
+  function openOverride(monthId, campus, date, role, idx){
+    if (!isAdmin()) return;
+    overrideCtx = {monthId: monthId, campus: campus, date: date, role: role, idx: idx};
+    var month = ensureMonth(monthId);
+    var sunday = month.serviceDates.find(function(s){ return s.date === date; });
+    document.getElementById("override-title").textContent = role + " — " + (sunday ? sunday.label : date);
+
+    var eligible = state.people.filter(function(p){ return p.campus === campus && p.roles.indexOf(role) !== -1; })
+      .sort(function(a,b){ return a.name.localeCompare(b.name); });
+    var sel = document.getElementById("override-select");
+    sel.innerHTML = '<option value="">— Unfilled —</option>';
+    eligible.forEach(function(p){
+      var opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+    var record = state.roster[rosterKey(monthId, campus)];
+    var current = record && record.assignments[date] ? (role === "Vocal" ? record.assignments[date]["Vocal"][idx] : record.assignments[date][role]) : null;
+    sel.value = current || "";
+    overrideDialog.showModal();
+  }
+
+  document.getElementById("override-cancel").addEventListener("click", function(){ overrideDialog.close(); });
+  document.getElementById("override-save").addEventListener("click", function(){
+    if (!overrideCtx || !isAdmin()) return;
+    var key = rosterKey(overrideCtx.monthId, overrideCtx.campus);
+    var record = state.roster[key];
+    if (!record) return;
+    var personId = document.getElementById("override-select").value || null;
+    if (overrideCtx.role === "Vocal"){
+      record.assignments[overrideCtx.date]["Vocal"][overrideCtx.idx] = personId;
+    } else {
+      record.assignments[overrideCtx.date][overrideCtx.role] = personId;
+    }
+    record.flags = record.flags.filter(function(f){ return !(f.date === overrideCtx.date && f.role === overrideCtx.role); });
+
+    supabase.from("roster").update({
+      assignments: record.assignments, flags: record.flags
+    }).eq("id", key).then(function(res){
+      if (res.error){ toast("Failed to save: " + res.error.message); return; }
+      overrideDialog.close();
+      renderRosterView();
+      toast("Updated.");
+    });
+  });
+
+  document.getElementById("publish-btn").addEventListener("click", function(){
+    if (!isAdmin()) return;
+    var monthId = document.getElementById("roster-month").value;
+    var campus = document.getElementById("roster-campus").value;
+    var key = rosterKey(monthId, campus);
+    var record = state.roster[key];
+    if (!record) return;
+    var nextPublished = !record.published;
+
+    supabase.from("roster").update({published: nextPublished}).eq("id", key).then(function(res){
+      if (res.error){ toast("Failed to save: " + res.error.message); return; }
+      record.published = nextPublished;
+      renderRosterView();
+      toast(nextPublished ? "Roster published." : "Roster unpublished.");
+    });
+  });
+
+  // ---------- boot ----------
+  function start(){
+    populateMonthSelects();
+    renderPeopleTable();
+    renderSubmitView();
+    renderRosterView();
+  }
+
+  // Initial session check (onAuthStateChange also fires once on load with INITIAL_SESSION,
+  // but calling getSession explicitly avoids relying on that timing across browsers).
+  supabase.auth.getSession().then(function(res){
+    var session = res.data && res.data.session;
+    if (!session){ showAuthScreen(); }
+  });
+})();
+</script>
+</body>
+</html>
