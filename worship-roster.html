@@ -1302,11 +1302,12 @@
 
           if (def.role === "Worship Leader"){
             // Worship Leaders serve both campuses, so campus preference doesn't apply —
-            // pool everyone eligible and just try to avoid repeating the same campus two Sundays running.
+            // pool everyone eligible. Never repeat the same campus two Sundays running (hard rule).
             var wlEligible = state.people.filter(function(p){
               return p.roles.indexOf(def.role) !== -1 && !isAway(p.id, sunday.date) && !usedToday[p.id];
             });
-            var wlPick = pickSinglePerson(wlEligible, monthlyCount, lastWeekUsed, lastWeekCampus, campus);
+            var wlNotSameCampus = wlEligible.filter(function(p){ return lastWeekCampus[p.id] !== campus; });
+            var wlPick = pickSinglePerson(wlNotSameCampus, monthlyCount, lastWeekUsed);
             campusAssignments[def.role] = wlPick ? wlPick.id : null;
             if (wlPick){
               usedToday[wlPick.id] = true;
@@ -1316,7 +1317,11 @@
                 thisWeekWLCampus[wlPick.id] = campus;
               }
             } else {
-              flags[campus].push({date: sunday.date, role: def.role, reason: wlEligible.length ? "Everyone eligible is already at the " + MONTHLY_CAP + "-per-month cap." : "No one eligible and free this Sunday."});
+              var wlReason;
+              if (!wlEligible.length) wlReason = "No one eligible and free this Sunday.";
+              else if (!wlNotSameCampus.length) wlReason = "Everyone eligible led " + campus + " last week — no repeat allowed.";
+              else wlReason = "Everyone eligible is already at the " + MONTHLY_CAP + "-per-month cap.";
+              flags[campus].push({date: sunday.date, role: def.role, reason: wlReason});
             }
           } else if (def.role === "Vocal"){
             var chosen = pickVocalTeam(preferred, monthlyCount, def.count, lastWeekUsed);
@@ -1391,7 +1396,7 @@
     };
   }
 
-  function pickSinglePerson(eligible, monthlyCount, lastWeekUsed, lastWeekCampus, campus){
+  function pickSinglePerson(eligible, monthlyCount, lastWeekUsed){
     if (!eligible.length) return null;
     var underCap = eligible.filter(function(p){ return monthlyCount[p.id] < MONTHLY_CAP; });
     var candidates = underCap.length ? underCap : [];
@@ -1402,10 +1407,6 @@
     if (lastWeekUsed){
       var notLastWeek = tier.filter(function(p){ return !lastWeekUsed[p.id]; });
       if (notLastWeek.length) tier = notLastWeek;
-    }
-    if (lastWeekCampus){
-      var notSameCampus = tier.filter(function(p){ return lastWeekCampus[p.id] !== campus; });
-      if (notSameCampus.length) tier = notSameCampus;
     }
     return shuffle(tier)[0];
   }
