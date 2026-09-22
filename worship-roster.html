@@ -598,7 +598,9 @@
         <div class="check-row" id="no-away-row" style="margin-top:8px;">
           <label class="check-row-main">
             <input type="checkbox" id="no-away-checkbox"> <span class="date-label">No away dates</span> <span class="muted small">I'm available every Sunday this month</span>
+            <button type="button" class="who-toggle" id="who-no-away-toggle">Who's not away?</button>
           </label>
+          <div class="check-row-who" id="who-no-away"></div>
         </div>
         <div class="row" style="margin-top:14px;">
           <button class="btn primary" id="submit-away-btn">Save my away dates</button>
@@ -1115,6 +1117,14 @@
     }).sort(function(a,b){ return a.name.localeCompare(b.name); });
   }
 
+  function whoHasNoAwayDates(monthId){
+    var submitted = state.availability[monthId] || {};
+    return state.people.filter(function(p){
+      var dates = submitted[p.id];
+      return dates && dates.length === 0;
+    }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+  }
+
   function buildCheckRow(monthId, dateEntry, existing, awayCopy){
     var row = document.createElement("div");
     row.className = "check-row";
@@ -1187,6 +1197,24 @@
       Array.prototype.slice.call(document.querySelectorAll("#submit-checklist input[type=checkbox]")).forEach(function(c){ c.checked = false; });
     }
     updateNoAwayState();
+  });
+
+  document.getElementById("who-no-away-toggle").addEventListener("click", function(){
+    var toggle = document.getElementById("who-no-away-toggle");
+    var who = document.getElementById("who-no-away");
+    var isOpen = who.classList.contains("open");
+    if (isOpen){
+      who.classList.remove("open");
+      toggle.textContent = "Who's not away?";
+      return;
+    }
+    var monthId = document.getElementById("submit-month").value;
+    var notAway = whoHasNoAwayDates(monthId);
+    who.innerHTML = notAway.length
+      ? '<div class="away-names">' + stackedNames(notAway.map(function(p){ return p.name; })) + '</div>'
+      : "Nobody has confirmed they're away every Sunday yet.";
+    who.classList.add("open");
+    toggle.textContent = "Hide";
   });
 
   document.getElementById("submit-away-btn").addEventListener("click", function(){
